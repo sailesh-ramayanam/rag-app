@@ -1,0 +1,87 @@
+import uuid
+from datetime import datetime
+from enum import Enum
+from sqlalchemy import Column, String, Text, DateTime, Integer, ForeignKey, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
+
+from app.core.database import Base
+from app.core.config import get_settings
+
+settings = get_settings()
+
+
+class ProcessingStatus(str, Enum):
+    """Document processing status."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class Document(Base):
+    """Document metadata model."""
+    
+    __tablename__ = "documents"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    filename = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_path = Column(String(512), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    mime_type = Column(String(100), nullable=False)
+    
+    # Processing status
+    status = Column(
+        SQLEnum(ProcessingStatus),
+        default=ProcessingStatus.PENDING,
+        nullable=False
+    )
+    status_message = Column(Text, nullable=True)
+    
+    # Metadata
+    page_count = Column(Integer, nullable=True)
+    word_count = Column(Integer, nullable=True)
+    chunk_count = Column(Integer, default=0)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    processed_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<Document(id={self.id}, filename={self.filename}, status={self.status})>"
+
+
+class DocumentChunk(Base):
+    """Document chunk with embedding for vector search."""
+    
+    __tablename__ = "document_chunks"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    
+    # Chunk content
+    content = Column(Text, nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    
+    # Chunk metadata
+    page_number = Column(Integer, nullable=True)
+    start_char = Column(Integer, nullable=True)
+    end_char = Column(Integer, nullable=True)
+    
+    # Vector embedding (384 dimensions for all-MiniLM-L6-v2)
+    embedding = Column(Vector(384), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    document = relationship("Document", back_populates="chunks")
+    
+    def __repr__(self):
+        return f"<DocumentChunk(id={self.id}, document_id={self.document_id}, index={self.chunk_index})>"
