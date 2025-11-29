@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.core.database import async_engine, Base
 from app.api.documents import router as documents_router
+from app.api.chat import router as chat_router
 
 # Configure logging
 logging.basicConfig(
@@ -55,12 +56,9 @@ app = FastAPI(
     - **Automatic Processing**: Text extraction, chunking, and embedding generation
     - **Async Processing**: Background processing with Celery
     - **Vector Search Ready**: Embeddings stored in pgvector for semantic search
-    
-    ## Coming Soon
-    
-    - Document Chat (RAG-based Q&A)
-    - AI-generated summaries
-    - Multi-document search
+    - **Document Chat**: RAG-based Q&A with conversation history
+    - **Multi-document Chat**: Ask questions across multiple documents
+    - **Source Citations**: Get references to source documents
     """,
     version="0.1.0",
     lifespan=lifespan,
@@ -77,6 +75,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(documents_router, prefix="/api/v1")
+app.include_router(chat_router, prefix="/api/v1")
 
 
 @app.get("/")

@@ -49,7 +49,6 @@ class DocumentChunkResponse(BaseModel):
     content: str
     chunk_index: int
     page_number: Optional[int]
-    
     class Config:
         from_attributes = True
 

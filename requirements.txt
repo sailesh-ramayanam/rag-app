@@ -30,6 +30,9 @@ torch==2.2.0
 transformers==4.37.2
 numpy<2.0.0
 
+# LLM
+openai==2.8.1
+
 # Utilities
 python-dotenv==1.0.1
 pydantic==2.6.1
