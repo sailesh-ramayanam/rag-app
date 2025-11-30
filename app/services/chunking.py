@@ -68,41 +68,6 @@ class TextChunker:
             ))
         
         return chunks
-    
-    def chunk_text_by_pages(self, pages: List[str]) -> List[TextChunk]:
-        """
-        Split text by pages, then chunk each page.
-        Preserves page number information.
-        
-        Args:
-            pages: List of text, one per page
-            
-        Returns:
-            List of TextChunk objects with page numbers
-        """
-        all_chunks = []
-        chunk_index = 0
-        global_char_offset = 0
-        
-        for page_num, page_text in enumerate(pages, start=1):
-            if not page_text.strip():
-                global_char_offset += len(page_text) + 2  # Account for page separator
-                continue
-                
-            page_chunks = self.chunk_text(page_text)
-            
-            for chunk in page_chunks:
-                chunk.chunk_index = chunk_index
-                chunk.page_number = page_num
-                chunk.start_char += global_char_offset
-                chunk.end_char += global_char_offset
-                all_chunks.append(chunk)
-                chunk_index += 1
-            
-            global_char_offset += len(page_text) + 2
-        
-        return all_chunks
-
 
 def create_chunks(text: str, chunk_size: int = None, chunk_overlap: int = None) -> List[TextChunk]:
     """
