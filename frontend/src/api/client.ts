@@ -44,6 +44,23 @@ export const api = {
     return handleResponse<{ message: string }>(response)
   },
 
+  async downloadDocument(id: string, filename: string) {
+    const response = await fetch(`${API_BASE}/documents/${id}/download`)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Download failed' }))
+      throw new ApiError(response.status, error.detail || 'Download failed')
+    }
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  },
+
   // Chats
   async getChats(page = 1, pageSize = 100) {
     const response = await fetch(`${API_BASE}/chats/?page=${page}&page_size=${pageSize}`)

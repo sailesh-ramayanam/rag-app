@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Loader2,
   TrendingUp,
+  ExternalLink,
 } from 'lucide-react'
 import { api } from '../api/client'
 
@@ -173,25 +174,25 @@ export default function AdminPage() {
                       <th className="px-4 py-3 text-xs font-medium text-surface-400 uppercase tracking-wider text-right">
                         Last Activity
                       </th>
+                      <th className="px-4 py-3 text-xs font-medium text-surface-400 uppercase tracking-wider text-center">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-700/50">
                     {usage?.chats.map((chat, index) => (
                       <tr
                         key={chat.chat_id}
-                        className="hover:bg-surface-700/30 transition-colors animate-fade-in"
+                        className="animate-fade-in"
                         style={{ animationDelay: `${index * 30}ms` }}
                       >
                         <td className="px-4 py-3">
-                          <Link
-                            to={`/chat/${chat.chat_id}`}
-                            className="flex items-center gap-2 text-vault-400 hover:text-vault-300 transition-colors"
-                          >
-                            <MessageSquare className="w-4 h-4" />
+                          <div className="flex items-center gap-2 text-surface-300">
+                            <MessageSquare className="w-4 h-4 text-surface-500" />
                             <span className="font-medium truncate max-w-[200px]">
                               {chat.chat_title || `Chat ${chat.chat_id.slice(0, 8)}...`}
                             </span>
-                          </Link>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-right text-surface-300 font-mono text-sm">
                           {chat.message_count}
@@ -209,6 +210,15 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-surface-500 text-sm">
                           {formatDate(chat.last_activity)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Link
+                            to={`/chat/${chat.chat_id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-vault-500/10 text-vault-400 hover:bg-vault-500/20 hover:text-vault-300 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Open
+                          </Link>
                         </td>
                       </tr>
                     ))}

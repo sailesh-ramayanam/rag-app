@@ -1,5 +1,6 @@
-import { FileText, FileCheck, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { FileText, FileCheck, Clock, AlertCircle, Loader2, Download } from 'lucide-react'
 import type { Document, ProcessingStatus } from '../types'
+import { api } from '../api/client'
 
 interface DocumentCardProps {
   document: Document
@@ -58,6 +59,15 @@ export default function DocumentCard({ document, selected, onToggle }: DocumentC
   const StatusIcon = status.icon
   const isSelectable = document.status === 'completed'
 
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await api.downloadDocument(document.id, document.original_filename)
+    } catch (error) {
+      console.error('Download failed:', error)
+    }
+  }
+
   return (
     <div
       onClick={() => isSelectable && onToggle()}
@@ -103,10 +113,19 @@ export default function DocumentCard({ document, selected, onToggle }: DocumentC
         {document.chunk_count > 0 && <span>{document.chunk_count} chunks</span>}
       </div>
 
-      {/* Status badge */}
-      <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${status.bg} ${status.color}`}>
-        <StatusIcon className={`w-3 h-3 ${document.status === 'processing' ? 'animate-spin' : ''}`} />
-        <span>{status.label}</span>
+      {/* Status badge and download button */}
+      <div className="flex items-center gap-2">
+        <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${status.bg} ${status.color}`}>
+          <StatusIcon className={`w-3 h-3 ${document.status === 'processing' ? 'animate-spin' : ''}`} />
+          <span>{status.label}</span>
+        </div>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-white transition-colors"
+          title="Download file"
+        >
+          <Download className="w-3 h-3" />
+        </button>
       </div>
 
       {/* Date */}

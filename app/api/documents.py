@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
+from fastapi.responses import FileResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -175,6 +176,34 @@ async def get_document(
         raise HTTPException(status_code=404, detail="Document not found")
     
     return DocumentResponse.model_validate(document)
+
+
+@router.get(
+    "/{document_id}/download",
+    responses={404: {"model": ErrorResponse}},
+)
+async def download_document(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Download the original document file."""
+    result = await session.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    document = result.scalar_one_or_none()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    
+    return FileResponse(
+        path=file_path,
+        filename=document.original_filename,
+        media_type=document.mime_type,
+    )
 
 
 @router.get(

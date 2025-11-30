@@ -64,6 +64,7 @@ export default function ChatPage() {
   const queryClient = useQueryClient()
   const [message, setMessage] = useState('')
   const [lastSources, setLastSources] = useState<Source[]>([])
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -74,14 +75,24 @@ export default function ChatPage() {
     enabled: !!chatId,
   })
 
+  // Reset state when switching chats
+  useEffect(() => {
+    setLastSources([])
+    setPendingMessage(null)
+  }, [chatId])
+
   // Send message mutation
   const sendMutation = useMutation({
     mutationFn: ({ question }: { question: string }) =>
       api.sendMessage(chatId!, question),
     onSuccess: (response) => {
       setLastSources(response.sources)
+      setPendingMessage(null)
       queryClient.invalidateQueries({ queryKey: ['chat', chatId] })
       queryClient.invalidateQueries({ queryKey: ['chats'] })
+    },
+    onError: () => {
+      setPendingMessage(null)
     },
   })
 
@@ -105,6 +116,7 @@ export default function ChatPage() {
     if (trimmed && !sendMutation.isPending) {
       setMessage('')
       setLastSources([])
+      setPendingMessage(trimmed)
       sendMutation.mutate({ question: trimmed })
     }
   }
@@ -249,6 +261,22 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
+
+            {/* Pending user message (optimistic UI) */}
+            {pendingMessage && (
+              <div className="flex gap-3 animate-fade-in flex-row-reverse">
+                <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center bg-surface-700">
+                  <User className="w-4 h-4 text-surface-300" />
+                </div>
+                <div className="flex-1 max-w-[80%] text-right">
+                  <div className="inline-block p-4 rounded-2xl bg-vault-600 text-white rounded-tr-sm">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                      {pendingMessage}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Typing indicator */}
             {sendMutation.isPending && (
