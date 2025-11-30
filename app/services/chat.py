@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.document import Document, DocumentChunk, ProcessingStatus
 from app.models.chat import Chat, ChatMessage, MessageRole, chat_documents
+from app.models.llm_usage import LLMUsageLog, LLMApiType
 from app.services.llm import get_llm, ChatMessage as LLMMessage
 from app.services.embeddings import get_embedding_service
 from app.core.config import get_settings
@@ -300,6 +301,7 @@ class ChatService:
         )
         user_message.retrieved_chunks = [rc.chunk for rc in retrieved_chunks]
         self.session.add(user_message)
+        await self.session.flush()  # Flush to get user_message.id for usage logging
         
         # Save assistant message
         assistant_message = ChatMessage(
@@ -308,6 +310,19 @@ class ChatService:
             content=response.content
         )
         self.session.add(assistant_message)
+        
+        # Log LLM usage for cost tracking
+        usage_log = LLMUsageLog(
+            chat_id=chat_id,
+            message_id=user_message.id,
+            api_type=LLMApiType.CHAT_COMPLETION,
+            model=response.model,
+            input_content="\n".join(f"[{m.role}]: {m.content}" for m in messages),
+            output_content=response.content,
+            input_tokens=response.usage["prompt_tokens"],
+            output_tokens=response.usage["completion_tokens"]
+        )
+        self.session.add(usage_log)
         
         # Update chat title if first message
         if not chat.title and len(chat.messages) == 0:
