@@ -7,7 +7,7 @@ import {
   Loader2,
   User,
   Sparkles,
-  ExternalLink,
+  Download,
   Trash2,
   AlertCircle,
 } from 'lucide-react'
@@ -166,16 +166,18 @@ export default function ChatPage() {
             </h1>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {chat.documents.map((doc) => (
-                <div
+                <button
                   key={doc.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-800 border border-surface-700 text-xs"
+                  onClick={() => api.downloadDocument(doc.id, doc.original_filename)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-800 border border-surface-700 text-xs hover:bg-surface-700 hover:border-surface-600 transition-colors"
+                  title={`Download ${doc.original_filename}`}
                 >
                   <FileText className="w-3 h-3 text-vault-400" />
                   <span className="text-surface-300 truncate max-w-[150px]">
                     {doc.original_filename}
                   </span>
-                  <ExternalLink className="w-3 h-3 text-surface-500" />
-                </div>
+                  <Download className="w-3 h-3 text-surface-500" />
+                </button>
               ))}
             </div>
           </div>

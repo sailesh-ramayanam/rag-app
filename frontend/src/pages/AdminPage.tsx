@@ -183,7 +183,7 @@ export default function AdminPage() {
                     {usage?.chats.map((chat, index) => (
                       <tr
                         key={chat.chat_id}
-                        className="animate-fade-in"
+                        className="hover:bg-surface-700/30 transition-colors animate-fade-in"
                         style={{ animationDelay: `${index * 30}ms` }}
                       >
                         <td className="px-4 py-3">
