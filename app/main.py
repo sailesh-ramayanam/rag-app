@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.database import async_engine, Base
 from app.api.documents import router as documents_router
 from app.api.chat import router as chat_router
+from app.api.admin import router as admin_router
 
 # Configure logging
 logging.basicConfig(
@@ -76,6 +77,7 @@ app.add_middleware(
 # Include routers
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 
 @app.get("/")

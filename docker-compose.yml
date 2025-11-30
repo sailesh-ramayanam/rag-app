@@ -85,6 +85,17 @@ services:
         condition: service_healthy
     command: celery -A app.tasks.celery_app worker --loglevel=info --pool=solo
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vault_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
