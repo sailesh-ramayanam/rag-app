@@ -12,6 +12,7 @@ export interface Document {
   page_count: number | null
   word_count: number | null
   chunk_count: number
+  summary: string | null
   created_at: string
   updated_at: string | null
   processed_at: string | null
@@ -76,10 +77,15 @@ export interface Source {
   similarity: number
 }
 
+export type QueryType = 'document_level' | 'follow_up' | 'chunk_retrieval' | 'mixed'
+export type RetrievalStrategy = 'document_summaries' | 'conversation_history' | 'vector_search' | 'mixed'
+
 export interface AskResponse {
   answer: string
   sources: Source[]
   message_id: string
+  query_type: QueryType
+  retrieval_strategy: RetrievalStrategy
 }
 
 // Admin types

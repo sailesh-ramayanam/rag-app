@@ -8,8 +8,10 @@ An intelligent document management system where users can upload documents, get 
 - **Automatic Text Extraction**: Intelligent parsing using pdfplumber and python-docx
 - **Smart Chunking**: LlamaIndex sentence splitter with configurable chunk sizes
 - **Local Vector Embeddings**: sentence-transformers (no API key required for ingestion!)
+- **AI-Generated Document Summaries**: Automatic summary generation during processing
 - **Document Chat**: RAG-based Q&A with conversation history
 - **Multi-document Chat**: Ask questions across multiple documents at once
+- **Smart Query Routing**: 3-stage pipeline that intelligently routes queries
 - **Source Citations**: Get references to source documents with page numbers
 - **Async Processing**: Background processing with Celery and Redis
 - **RESTful API**: Clean FastAPI endpoints with automatic documentation
@@ -80,8 +82,17 @@ An intelligent document management system where users can upload documents, get 
 | POST | `/api/v1/chats/` | Create a new chat with document IDs |
 | GET | `/api/v1/chats/` | List all chats (paginated) |
 | GET | `/api/v1/chats/{id}` | Get chat with message history |
-| POST | `/api/v1/chats/{id}/messages` | Ask a question |
+| POST | `/api/v1/chats/{id}/messages` | Ask a question (with smart routing) |
 | DELETE | `/api/v1/chats/{id}` | Delete a chat |
+
+### Admin
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/usage/summary` | Get overall usage summary |
+| GET | `/api/v1/admin/usage/chats` | Get per-chat token usage |
+| GET | `/api/v1/admin/documents/summaries` | Get document summary status |
+| POST | `/api/v1/admin/documents/regenerate-summaries` | Regenerate document summaries |
 
 ### Example: Complete Chat Workflow
 
@@ -108,7 +119,36 @@ curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
   -H "Content-Type: application/json" \
   -d '{"question": "What is the main topic of this document?"}'
 
-# Response: { "answer": "...", "sources": [...] }
+# Response: { 
+#   "answer": "...", 
+#   "sources": [...], 
+#   "query_type": "chunk_retrieval",
+#   "retrieval_strategy": "vector_search" 
+# }
+
+# 5. Ask for a summary (uses document summaries, not vector search)
+curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Summarize this document"}'
+
+# Response: { 
+#   "answer": "...", 
+#   "sources": [...], 
+#   "query_type": "document_level",
+#   "retrieval_strategy": "document_summaries" 
+# }
+
+# 6. Ask a follow-up (uses conversation history)
+curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Tell me more about that"}'
+
+# Response: { 
+#   "answer": "...", 
+#   "sources": [...], 
+#   "query_type": "follow_up",
+#   "retrieval_strategy": "conversation_history" 
+# }
 ```
 
 ## Architecture
@@ -141,13 +181,34 @@ curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
 5. **Embed**: sentence-transformers generates 384-dim vectors locally
 6. **Store**: Chunks and embeddings saved to PostgreSQL with pgvector
 
-### Chat Pipeline
+### Enhanced 3-Stage Chat Pipeline
 
-1. **Create Chat**: Select documents to chat with
-2. **Ask Question**: Question embedded using same model
-3. **Retrieve**: Top-k similar chunks found via pgvector cosine similarity
-4. **Generate**: OpenAI GPT generates answer with context
-5. **Cite**: Response includes source citations with page numbers
+The chat system uses an intelligent 3-stage RAG pipeline that adapts to different query types:
+
+#### Stage 1: Query Classification
+Analyzes the user's query to determine its type:
+- **DOCUMENT_LEVEL**: "Summarize this document", "What is this about?"
+- **FOLLOW_UP**: "Tell me more", "Can you elaborate?"
+- **CHUNK_RETRIEVAL**: "What is the pricing?", "How does feature X work?"
+- **MIXED**: Queries needing both history and new search
+
+#### Stage 2: Retrieval Routing
+Routes to appropriate content based on query type:
+- Document summaries for overview questions
+- Conversation history for follow-up questions
+- Vector search for specific topic queries
+- Combined retrieval for complex queries
+
+#### Stage 3: Context Building
+Builds optimized prompts with:
+- Appropriate system instructions per query type
+- Relevant retrieved content
+- Conversation history when needed
+
+This approach ensures:
+- "Provide a summary" → Uses pre-generated document summaries
+- "Tell me more" → Uses conversation context, not vector search
+- "What is X?" → Uses vector search for relevant chunks
 
 ## Configuration
 
@@ -223,10 +284,11 @@ celery -A app.tasks.celery_app worker --loglevel=info
 ## Coming Soon
 
 - [ ] Streaming chat responses (SSE)
-- [ ] AI-generated document summaries
+- [x] AI-generated document summaries
+- [x] Smart query routing (follow-up detection)
 - [ ] Follow-up question suggestions
 - [ ] Document categorization
-- [ ] Cost tracking for API usage
+- [x] Cost tracking for API usage
 
 ## License
 

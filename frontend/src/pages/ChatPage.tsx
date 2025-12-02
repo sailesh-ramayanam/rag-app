@@ -12,7 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { api } from '../api/client'
-import type { Source } from '../types'
+import type { Source, QueryType, RetrievalStrategy } from '../types'
 
 function formatTime(dateString: string): string {
   const date = new Date(dateString)
@@ -24,36 +24,62 @@ function formatTime(dateString: string): string {
 
 interface SourcesPanelProps {
   sources: Source[]
+  queryInfo?: { type: QueryType; strategy: RetrievalStrategy } | null
 }
 
-function SourcesPanel({ sources }: SourcesPanelProps) {
-  if (sources.length === 0) return null
+const strategyLabels: Record<RetrievalStrategy, string> = {
+  document_summaries: 'Document Summary',
+  conversation_history: 'Conversation Context',
+  vector_search: 'Document Search',
+  mixed: 'Mixed Retrieval',
+}
+
+const strategyColors: Record<RetrievalStrategy, string> = {
+  document_summaries: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  conversation_history: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  vector_search: 'bg-vault-500/20 text-vault-400 border-vault-500/30',
+  mixed: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+}
+
+function SourcesPanel({ sources, queryInfo }: SourcesPanelProps) {
+  if (sources.length === 0 && !queryInfo) return null
 
   return (
     <div className="mt-3 p-3 bg-surface-800/50 rounded-lg border border-surface-700">
-      <h4 className="text-xs font-medium text-surface-400 mb-2">Sources</h4>
-      <div className="space-y-2">
-        {sources.map((source, i) => (
-          <div
-            key={i}
-            className="p-2 bg-surface-900 rounded-md border border-surface-700 text-xs"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="w-3 h-3 text-vault-400" />
-              <span className="text-vault-400 font-medium truncate">
-                {source.document_name}
-              </span>
-              {source.page_number && (
-                <span className="text-surface-500">• Page {source.page_number}</span>
-              )}
-              <span className="text-surface-600 ml-auto">
-                {(source.similarity * 100).toFixed(0)}% match
-              </span>
-            </div>
-            <p className="text-surface-400 line-clamp-2">{source.chunk_content}</p>
+      {queryInfo && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`px-2 py-0.5 rounded-full text-xs border ${strategyColors[queryInfo.strategy]}`}>
+            {strategyLabels[queryInfo.strategy]}
+          </span>
+        </div>
+      )}
+      {sources.length > 0 && (
+        <>
+          <h4 className="text-xs font-medium text-surface-400 mb-2">Sources</h4>
+          <div className="space-y-2">
+            {sources.map((source, i) => (
+              <div
+                key={i}
+                className="p-2 bg-surface-900 rounded-md border border-surface-700 text-xs"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText className="w-3 h-3 text-vault-400" />
+                  <span className="text-vault-400 font-medium truncate">
+                    {source.document_name}
+                  </span>
+                  {source.page_number && (
+                    <span className="text-surface-500">• Page {source.page_number}</span>
+                  )}
+                  <span className="text-surface-600 ml-auto">
+                    {(source.similarity * 100).toFixed(0)}% match
+                  </span>
+                </div>
+                <p className="text-surface-400 line-clamp-2">{source.chunk_content}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   )
 }
@@ -64,6 +90,7 @@ export default function ChatPage() {
   const queryClient = useQueryClient()
   const [message, setMessage] = useState('')
   const [lastSources, setLastSources] = useState<Source[]>([])
+  const [lastQueryInfo, setLastQueryInfo] = useState<{ type: QueryType; strategy: RetrievalStrategy } | null>(null)
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -78,6 +105,7 @@ export default function ChatPage() {
   // Reset state when switching chats
   useEffect(() => {
     setLastSources([])
+    setLastQueryInfo(null)
     setPendingMessage(null)
   }, [chatId])
 
@@ -87,6 +115,7 @@ export default function ChatPage() {
       api.sendMessage(chatId!, question),
     onSuccess: (response) => {
       setLastSources(response.sources)
+      setLastQueryInfo({ type: response.query_type, strategy: response.retrieval_strategy })
       setPendingMessage(null)
       queryClient.invalidateQueries({ queryKey: ['chat', chatId] })
       queryClient.invalidateQueries({ queryKey: ['chats'] })
@@ -116,6 +145,7 @@ export default function ChatPage() {
     if (trimmed && !sendMutation.isPending) {
       setMessage('')
       setLastSources([])
+      setLastQueryInfo(null)
       setPendingMessage(trimmed)
       sendMutation.mutate({ question: trimmed })
     }
@@ -259,7 +289,9 @@ export default function ChatPage() {
                   {/* Show sources for the last assistant message */}
                   {msg.role === 'assistant' &&
                     index === chat.messages.length - 1 &&
-                    lastSources.length > 0 && <SourcesPanel sources={lastSources} />}
+                    (lastSources.length > 0 || lastQueryInfo) && (
+                      <SourcesPanel sources={lastSources} queryInfo={lastQueryInfo} />
+                    )}
                 </div>
               </div>
             ))}

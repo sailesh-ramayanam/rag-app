@@ -25,6 +25,7 @@ class AskQuestionRequest(BaseModel):
     """Request to ask a question."""
     question: str = Field(..., min_length=1, max_length=10000, description="Question to ask")
     top_k: int = Field(5, ge=1, le=20, description="Number of chunks to retrieve")
+    use_smart_routing: bool = Field(True, description="Use LLM-based query classification (more accurate but slower)")
 
 
 class SourceResponse(BaseModel):
@@ -41,6 +42,9 @@ class AskQuestionResponse(BaseModel):
     answer: str
     sources: List[SourceResponse]
     message_id: UUID
+    # New: metadata about how the query was processed
+    query_type: str = Field(description="Type of query: document_level, follow_up, chunk_retrieval, or mixed")
+    retrieval_strategy: str = Field(description="Strategy used for retrieval: document_summaries, conversation_history, vector_search, or mixed")
 
 
 class DocumentSummary(BaseModel):
@@ -220,12 +224,18 @@ async def ask_question(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Ask a question in a chat session.
+    Ask a question in a chat session using the 3-stage RAG pipeline.
     
-    The system will:
-    1. Retrieve the top-k most relevant document chunks
-    2. Send the context and conversation history to the LLM
-    3. Return the answer with source citations
+    The enhanced pipeline:
+    1. **Query Classification**: Analyzes the query type (document-level, follow-up, chunk-retrieval, or mixed)
+    2. **Retrieval Routing**: Routes to appropriate content based on query type
+       - Document-level queries → Document summaries
+       - Follow-up queries → Conversation history
+       - Chunk retrieval queries → Vector search
+       - Mixed queries → Both history and vector search
+    3. **Context Building**: Builds optimal prompt for the LLM based on retrieved content
+    
+    Set `use_smart_routing=false` for faster (but less accurate) rule-based classification.
     """
     service = ChatService(session)
     
@@ -233,7 +243,8 @@ async def ask_question(
         response = await service.ask(
             chat_id=chat_id,
             question=request.question,
-            top_k=request.top_k
+            top_k=request.top_k,
+            use_smart_routing=request.use_smart_routing
         )
         
         return AskQuestionResponse(
@@ -243,6 +254,8 @@ async def ask_question(
                 for source in response.sources
             ],
             message_id=response.message_id,
+            query_type=response.query_type,
+            retrieval_strategy=response.retrieval_strategy,
         )
     except ValueError as e:
         error_msg = str(e)

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from openai import OpenAI
 
 from app.tasks.celery_app import celery_app
 from app.core.config import get_settings
@@ -21,10 +22,64 @@ sync_engine = create_engine(settings.sync_database_url, echo=False)
 SyncSession = sessionmaker(bind=sync_engine)
 
 
+def generate_document_summary(text: str, filename: str, max_chars: int = 10000) -> str:
+    """
+    Generate a summary of the document using the LLM.
+    
+    Args:
+        text: Full document text
+        filename: Name of the document
+        max_chars: Maximum characters to send to LLM for summary generation
+        
+    Returns:
+        Generated summary string
+    """
+    try:
+        # Use OpenAI client synchronously for Celery task
+        client = OpenAI(api_key=settings.openai_api_key)
+        
+        # Truncate text if too long (use beginning and end for better coverage)
+        if len(text) > max_chars:
+            half = max_chars // 2
+            text_for_summary = text[:half] + "\n\n[... content truncated ...]\n\n" + text[-half:]
+        else:
+            text_for_summary = text
+        
+        prompt = f"""Analyze the following document and provide a comprehensive summary.
+
+Document Name: {filename}
+
+Document Content:
+{text_for_summary}
+
+Please provide a summary that includes:
+1. Main topic/purpose of the document
+2. Key points and themes
+3. Important findings, conclusions, or recommendations (if applicable)
+4. Target audience or context (if identifiable)
+
+Keep the summary concise but informative (2-4 paragraphs)."""
+
+        response = client.chat.completions.create(
+            model=settings.llm_model,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        summary = response.choices[0].message.content
+        logger.info(f"Generated summary for {filename}")
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Error generating summary for {filename}: {e}")
+        return f"Summary generation failed: {str(e)[:200]}"
+
+
 @celery_app.task(bind=True, max_retries=3)
 def process_document_task(self, document_id: str):
     """
-    Process a document: extract text, create chunks, generate embeddings.
+    Process a document: extract text, create chunks, generate embeddings, and create summary.
     
     Args:
         document_id: UUID of the document to process
@@ -86,6 +141,14 @@ def process_document_task(self, document_id: str):
             )
             session.add(db_chunk)
         
+        # Step 5: Generate document summary
+        document.status_message = "Generating document summary..."
+        session.commit()
+        
+        logger.info(f"Generating summary for {document.filename}")
+        summary = generate_document_summary(text, document.original_filename)
+        document.summary = summary
+        
         # Update document status
         document.status = ProcessingStatus.COMPLETED
         document.status_message = "Processing completed successfully"
@@ -99,6 +162,7 @@ def process_document_task(self, document_id: str):
             "document_id": str(document.id),
             "chunks_created": len(chunks),
             "word_count": document.word_count,
+            "summary_generated": bool(summary),
         }
         
     except Exception as e:
@@ -121,3 +185,53 @@ def process_document_task(self, document_id: str):
     finally:
         session.close()
 
+
+@celery_app.task(bind=True, max_retries=2)
+def regenerate_summary_task(self, document_id: str):
+    """
+    Regenerate the summary for an existing processed document.
+    
+    Useful for documents that were processed before summary generation was added,
+    or to update summaries with improved prompts.
+    
+    Args:
+        document_id: UUID of the document
+    """
+    session = SyncSession()
+    
+    try:
+        document = session.query(Document).filter(Document.id == document_id).first()
+        
+        if not document:
+            logger.error(f"Document {document_id} not found")
+            return {"status": "error", "message": "Document not found"}
+        
+        if document.status != ProcessingStatus.COMPLETED:
+            return {"status": "error", "message": f"Document not processed: {document.status.value}"}
+        
+        logger.info(f"Regenerating summary for document: {document.filename}")
+        
+        # Re-extract text
+        processor = DocumentProcessor(document.file_path)
+        text, _ = processor.extract_text()
+        
+        # Generate new summary
+        summary = generate_document_summary(text, document.original_filename)
+        document.summary = summary
+        session.commit()
+        
+        logger.info(f"Successfully regenerated summary for {document.filename}")
+        
+        return {
+            "status": "success",
+            "document_id": str(document.id),
+            "summary_generated": bool(summary),
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error regenerating summary for {document_id}: {e}")
+        session.rollback()
+        raise self.retry(exc=e, countdown=30)
+        
+    finally:
+        session.close()

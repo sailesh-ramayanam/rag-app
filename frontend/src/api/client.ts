@@ -81,11 +81,11 @@ export const api = {
     return handleResponse<import('../types').Chat>(response)
   },
 
-  async sendMessage(chatId: string, question: string, topK = 5) {
+  async sendMessage(chatId: string, question: string, topK = 5, useSmartRouting = true) {
     const response = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, top_k: topK }),
+      body: JSON.stringify({ question, top_k: topK, use_smart_routing: useSmartRouting }),
     })
     return handleResponse<import('../types').AskResponse>(response)
   },

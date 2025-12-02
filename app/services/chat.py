@@ -1,4 +1,4 @@
-"""Chat service for document Q&A with RAG."""
+"""Chat service for document Q&A with enhanced 3-stage RAG pipeline."""
 
 from typing import List, Optional, Tuple
 from uuid import UUID
@@ -14,18 +14,17 @@ from app.models.chat import Chat, ChatMessage, MessageRole, chat_documents
 from app.models.llm_usage import LLMUsageLog, LLMApiType
 from app.services.llm import get_llm, ChatMessage as LLMMessage
 from app.services.embeddings import get_embedding_service
+from app.services.query_classifier import (
+    QueryClassifier, QueryType, ClassificationResult, get_query_classifier
+)
+from app.services.retrieval_router import (
+    RetrievalRouter, RetrievalResult, RetrievedChunk, get_retrieval_router
+)
+from app.services.context_builder import ContextBuilder, BuiltContext, get_context_builder
 from app.core.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class RetrievedChunk:
-    """A retrieved chunk with similarity score."""
-    chunk: DocumentChunk
-    similarity: float
-    document_name: str
 
 
 @dataclass
@@ -34,29 +33,27 @@ class ChatResponse:
     answer: str
     sources: List[dict]
     message_id: UUID
-
-
-SYSTEM_PROMPT = """You are a helpful assistant that answers questions based on the provided document context.
-
-Instructions:
-- Answer questions based ONLY on the provided context
-- If the context doesn't contain enough information to answer, say so clearly
-- Cite specific parts of the documents when relevant
-- Be concise but thorough
-- If asked about something not in the documents, politely explain that you can only answer based on the provided documents
-
-Context from documents:
-{context}
-"""
+    # New: metadata about how the query was processed
+    query_type: str
+    retrieval_strategy: str
 
 
 class ChatService:
-    """Service for handling document chat with RAG."""
+    """Service for handling document chat with enhanced 3-stage RAG pipeline.
+    
+    The pipeline consists of:
+    1. Query Classification - Determine query type (DOCUMENT_LEVEL, FOLLOW_UP, CHUNK_RETRIEVAL, MIXED)
+    2. Retrieval Routing - Route to appropriate retrieval mechanism
+    3. Context Building - Build optimal prompt for the LLM
+    """
     
     def __init__(self, session: AsyncSession):
         self.session = session
         self.llm = get_llm()
         self.embedding_service = get_embedding_service()
+        self.query_classifier = get_query_classifier()
+        self.retrieval_router = get_retrieval_router(session)
+        self.context_builder = get_context_builder()
     
     async def create_chat(
         self,
@@ -151,116 +148,29 @@ class ChatService:
         await self.session.commit()
         return True
     
-    async def _retrieve_chunks(
-        self,
-        query: str,
-        document_ids: List[UUID],
-        top_k: int = 5
-    ) -> List[RetrievedChunk]:
-        """
-        Retrieve top-k most relevant chunks for a query.
-        
-        Uses cosine similarity with pgvector.
-        """
-        # Generate query embedding
-        query_embedding = self.embedding_service.generate_embedding(query)
-        
-        # Build query for vector similarity search
-        # Filter by document_ids and order by cosine distance
-        from sqlalchemy import text
-        
-        # Convert UUIDs to strings for the query
-        doc_ids_str = ",".join(f"'{str(did)}'" for did in document_ids)
-        
-        # Use pgvector's cosine distance operator (<=>)
-        query_sql = text(f"""
-            SELECT 
-                dc.id,
-                dc.document_id,
-                dc.content,
-                dc.chunk_index,
-                dc.page_number,
-                d.original_filename,
-                1 - (dc.embedding <=> :embedding) as similarity
-            FROM document_chunks dc
-            JOIN documents d ON dc.document_id = d.id
-            WHERE dc.document_id IN ({doc_ids_str})
-            AND dc.embedding IS NOT NULL
-            ORDER BY dc.embedding <=> :embedding
-            LIMIT :limit
-        """)
-        
-        result = await self.session.execute(
-            query_sql,
-            {"embedding": str(query_embedding), "limit": top_k}
-        )
-        rows = result.fetchall()
-        
-        # Get full chunk objects
-        retrieved = []
-        for row in rows:
-            chunk_result = await self.session.execute(
-                select(DocumentChunk).where(DocumentChunk.id == row.id)
-            )
-            chunk = chunk_result.scalar_one()
-            
-            retrieved.append(RetrievedChunk(
-                chunk=chunk,
-                similarity=float(row.similarity),
-                document_name=row.original_filename
-            ))
-        
-        return retrieved
-    
-    def _build_context(self, chunks: List[RetrievedChunk]) -> str:
-        """Build context string from retrieved chunks."""
-        context_parts = []
-        
-        for i, rc in enumerate(chunks, 1):
-            page_info = f" (Page {rc.chunk.page_number})" if rc.chunk.page_number else ""
-            context_parts.append(
-                f"[Source {i}: {rc.document_name}{page_info}]\n{rc.chunk.content}"
-            )
-        
-        return "\n\n---\n\n".join(context_parts)
-    
-    def _build_messages(
-        self,
-        history: List[ChatMessage],
-        context: str,
-        question: str
-    ) -> List[LLMMessage]:
-        """Build messages for LLM from history and new question."""
-        messages = [
-            LLMMessage(role="system", content=SYSTEM_PROMPT.format(context=context))
-        ]
-        
-        # Add conversation history (skip system messages, limit history)
-        for msg in history[-10:]:  # Last 10 messages for context window
-            if msg.role != MessageRole.SYSTEM:
-                messages.append(LLMMessage(role=msg.role.value, content=msg.content))
-        
-        # Add current question
-        messages.append(LLMMessage(role="user", content=question))
-        
-        return messages
-    
     async def ask(
         self,
         chat_id: UUID,
         question: str,
-        top_k: int = 5
+        top_k: int = 5,
+        use_smart_routing: bool = True
     ) -> ChatResponse:
         """
-        Ask a question in a chat session.
+        Ask a question in a chat session using the 3-stage RAG pipeline.
+        
+        Pipeline Stages:
+        1. Query Classification - Analyze query to determine type
+        2. Retrieval Routing - Fetch appropriate content based on type
+        3. Context Building - Build optimal prompt for LLM
         
         Args:
             chat_id: Chat session ID
             question: User's question
-            top_k: Number of chunks to retrieve
+            top_k: Number of chunks to retrieve for vector search
+            use_smart_routing: If True, uses LLM-based classification; else uses simple rules
             
         Returns:
-            ChatResponse with answer and sources
+            ChatResponse with answer, sources, and metadata
         """
         # Get chat
         chat = await self.get_chat(chat_id)
@@ -279,19 +189,88 @@ class ChatService:
                     f"Status: {doc.status.value}"
                 )
         
-        # Retrieve relevant chunks
-        retrieved_chunks = await self._retrieve_chunks(question, document_ids, top_k)
+        conversation_history = list(chat.messages)
         
-        if not retrieved_chunks:
-            raise ValueError("No relevant content found in documents")
+        # ===== STAGE 1: Query Classification =====
+        logger.info(f"Stage 1: Classifying query for chat {chat_id}")
         
-        # Build context and messages
-        context = self._build_context(retrieved_chunks)
-        messages = self._build_messages(list(chat.messages), context, question)
+        if use_smart_routing:
+            classification = await self.query_classifier.classify(
+                question, conversation_history
+            )
+        else:
+            classification = self.query_classifier.classify_simple(
+                question, has_history=len(conversation_history) > 0
+            )
         
-        # Generate response
+        logger.info(
+            f"Query classified as {classification.query_type.value} "
+            f"(confidence: {classification.confidence})"
+        )
+        
+        # ===== STAGE 2: Retrieval Routing =====
+        logger.info(f"Stage 2: Routing retrieval for {classification.query_type.value}")
+        
+        retrieval_result = await self.retrieval_router.route(
+            classification=classification,
+            query=question,
+            document_ids=document_ids,
+            conversation_history=conversation_history,
+            top_k=top_k
+        )
+        
+        # Check if we have any content to work with
+        if not retrieval_result.has_content():
+            # Fallback to basic chunk retrieval if nothing was found
+            logger.warning("No content retrieved, falling back to chunk retrieval")
+            retrieval_result = await self.retrieval_router.route(
+                classification=ClassificationResult(
+                    query_type=QueryType.CHUNK_RETRIEVAL,
+                    confidence=1.0,
+                    reasoning="Fallback due to empty retrieval",
+                    search_query=question
+                ),
+                query=question,
+                document_ids=document_ids,
+                conversation_history=conversation_history,
+                top_k=top_k
+            )
+            
+            if not retrieval_result.has_content():
+                raise ValueError("No relevant content found in documents")
+        
+        logger.info(
+            f"Retrieved: {len(retrieval_result.document_summaries)} summaries, "
+            f"{len(retrieval_result.retrieved_chunks)} chunks, "
+            f"{len(retrieval_result.conversation_context)} context messages"
+        )
+        
+        # ===== STAGE 3: Context Building =====
+        logger.info(f"Stage 3: Building context for LLM")
+        
+        # Determine if we should include history in messages
+        # For CHUNK_RETRIEVAL, we might not need history if query is self-contained
+        include_history = classification.query_type in [
+            QueryType.FOLLOW_UP, QueryType.MIXED
+        ] or len(conversation_history) > 0
+        
+        built_context = self.context_builder.build(
+            query=question,
+            classification=classification,
+            retrieval=retrieval_result,
+            conversation_history=conversation_history,
+            include_history_in_messages=include_history
+        )
+        
+        logger.info(f"Context built: {built_context.strategy_description}")
+        
+        # ===== Generate Response =====
         logger.info(f"Generating response for chat {chat_id}")
-        response = await self.llm.agenerate(messages)
+        response = await self.llm.agenerate(built_context.messages)
+        
+        # ===== Save Messages and Log Usage =====
+        # Get the chunks that were used (for attribution)
+        chunks_used = retrieval_result.retrieved_chunks
         
         # Save user message with retrieved chunks
         user_message = ChatMessage(
@@ -299,9 +278,10 @@ class ChatService:
             role=MessageRole.USER,
             content=question
         )
-        user_message.retrieved_chunks = [rc.chunk for rc in retrieved_chunks]
+        if chunks_used:
+            user_message.retrieved_chunks = [rc.chunk for rc in chunks_used]
         self.session.add(user_message)
-        await self.session.flush()  # Flush to get user_message.id for usage logging
+        await self.session.flush()
         
         # Save assistant message
         assistant_message = ChatMessage(
@@ -317,7 +297,7 @@ class ChatService:
             message_id=user_message.id,
             api_type=LLMApiType.CHAT_COMPLETION,
             model=response.model,
-            input_content="\n".join(f"[{m.role}]: {m.content}" for m in messages),
+            input_content="\n".join(f"[{m.role}]: {m.content[:200]}..." for m in built_context.messages),
             output_content=response.content,
             input_tokens=response.usage["prompt_tokens"],
             output_tokens=response.usage["completion_tokens"]
@@ -326,13 +306,12 @@ class ChatService:
         
         # Update chat title if first message
         if not chat.title and len(chat.messages) == 0:
-            # Generate title from first question (truncated)
             chat.title = question[:100] + ("..." if len(question) > 100 else "")
         
         await self.session.commit()
         await self.session.refresh(assistant_message)
         
-        # Build sources
+        # Build sources from retrieved chunks
         sources = [
             {
                 "document_id": str(rc.chunk.document_id),
@@ -341,17 +320,29 @@ class ChatService:
                 "page_number": rc.chunk.page_number,
                 "similarity": round(rc.similarity, 4)
             }
-            for rc in retrieved_chunks
+            for rc in chunks_used
         ]
+        
+        # Also include document summaries as sources if used
+        if retrieval_result.document_summaries:
+            for summary in retrieval_result.document_summaries:
+                sources.append({
+                    "document_id": summary["document_id"],
+                    "document_name": summary["document_name"],
+                    "chunk_content": f"[Document Summary] {summary.get('summary', '')[:500]}...",
+                    "page_number": None,
+                    "similarity": 1.0  # Summaries are always relevant for document-level queries
+                })
         
         return ChatResponse(
             answer=response.content,
             sources=sources,
-            message_id=assistant_message.id
+            message_id=assistant_message.id,
+            query_type=classification.query_type.value,
+            retrieval_strategy=retrieval_result.retrieval_strategy
         )
 
 
 async def get_chat_service(session: AsyncSession) -> ChatService:
     """Factory function to get chat service instance."""
     return ChatService(session)
-
