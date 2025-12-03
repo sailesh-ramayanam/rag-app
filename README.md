@@ -2,6 +2,27 @@
 
 An intelligent document management system where users can upload documents, get AI-powered insights, and chat with their documents using natural language.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+  - [Running Tests](#running-tests)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [API Endpoints](#api-endpoints)
+  - [Documents](#documents)
+  - [Chat](#chat)
+  - [Admin](#admin)
+- [Architecture](#architecture)
+  - [Processing Pipeline](#processing-pipeline)
+  - [Enhanced 3-Stage Chat Pipeline](#enhanced-3-stage-chat-pipeline)
+  - [Testing Strategy](#testing-strategy)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [To Dos](#to-dos)
+- [Enhancements](#enhancements)
+
 ## Quick Start
 
 ### Prerequisites
