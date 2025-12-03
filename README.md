@@ -21,7 +21,7 @@ An intelligent document management system where users can upload documents, get 
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
 - [To Dos](#to-dos)
-  - [Review](#review)
+  - [Code Review](#code-review)
     - [Functional](#functional)
     - [System Design](#system-design)
     - [Tests](#tests)
@@ -34,6 +34,7 @@ An intelligent document management system where users can upload documents, get 
 - [AI Usage](#ai-usage)
 
 ## Quick Start
+[Demo video](https://youtu.be/k0EiO62KHUo)
 
 ### Prerequisites
 
@@ -62,7 +63,7 @@ An intelligent document management system where users can upload documents, get 
    docker-compose up --build
    ```
 
-   > Note: First run will download the embedding model (~90MB). This is cached for subsequent runs.
+   > Note: First run will download the embedding model and other libraries. So, initial launch will take some time. This is cached for subsequent runs.
 
 5. **Access the application:**
    - UI: http://localhost:3000
@@ -86,18 +87,7 @@ The test suite runs RAG pipeline evaluation tests against the running backend se
 # Rebuild test container and run
 ./run_tests.sh --build
 ```
-
-**Windows (PowerShell): Not tested**
-```powershell
-# Run all tests
-.\run_tests.ps1
-
-# Run specific test (e.g., biography)
-.\run_tests.ps1 biography
-
-# Rebuild test container and run
-.\run_tests.ps1 -Build
-```
+> Note: First run will download some libraries. So, initial test will take some time. This is cached for subsequent runs.
 
 The tests use `docker-compose.test.yml` to run pytest in a container that connects to the backend services.
 
@@ -105,19 +95,19 @@ The tests use `docker-compose.test.yml` to run pytest in a container that connec
 
 ```
                     ┌─────────────┐
-                    │   OpenAI    │
-                    │  gpt-5-nano │
-                    └─────────────┘
-                          ▲
-                          │
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────>│   FastAPI   │────>│  PostgreSQL │
-│             │     │    (API)    │     │  (pgvector) │
-└─────────────┘     └─────────────┘     └─────────────┘
-                          │
-                          ▼
-                   ┌─────────────┐     ┌─────────────┐
-                   │    Redis    │<────│   Celery    │
+                    │   OpenAI    │<────────────────────────────
+                    │  gpt-5-nano │                             |
+                    └─────────────┘                             |
+                          ▲                                     |
+                          │                                     |
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐         |
+│   Client    │────>│   FastAPI   │────>│  PostgreSQL │         |
+│             │     │    (API)    │     │  (pgvector) │         |
+└─────────────┘     └─────────────┘     └─────────────┘         |
+                          │                                     |
+                          ▼                                     |
+                   ┌─────────────┐     ┌─────────────┐          |
+                   │    Redis    │<────│   Celery    │----------
                    │   (Queue)   │     │  (Worker)   │
                    └─────────────┘     └──────┬──────┘
                                               │
@@ -314,7 +304,7 @@ rag-app/
 ```
 
 ## To Dos
-### Review
+### Code Review
 Almost all of the code is LLM generated. Following are a few aspects I noticed while skimming through the code (but not an exhaustive list of issues)
 #### Functional
 - Is error handling present at all steps?
