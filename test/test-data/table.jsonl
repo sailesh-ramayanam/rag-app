@@ -1,0 +1,7 @@
+{"file_name": "table.pdf"}
+{"question_id": "D_Q1", "question": "What is the weight of model X200?", "expected_answer": "1.5 kg.", "type": "table"}
+{"question_id": "D_Q2", "question": "Which model has the highest power rating?", "expected_answer": "XPro with 75 W.", "type": "table"}
+{"question_id": "D_Q3", "question": "How many models have a 2-year warranty?", "expected_answer": "Two models: X200 and XPro.", "type": "table"}
+{"question_id": "D_Q4", "question": "What warranty does X100 have?", "expected_answer": "1 year.", "type": "table"}
+
+

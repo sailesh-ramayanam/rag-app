@@ -1,0 +1,5 @@
+{"file_name": "biography.pdf"}
+{"question_id": "B_Q1", "question": "When did Maya Rao lead the FalconDB project?", "expected_answer": "From 2015 to 2019.", "type": "extractive"}
+{"question_id": "B_Q2", "question": "Where did she get her MS?", "expected_answer": "IISc, in 1998.", "type": "extractive"}
+{"question_id": "B_Q3", "question": "Summarize Maya Rao’s career in one sentence.", "expected_answer": "Maya Rao is a Bangalore-based engineer who led FalconDB (2015–2019), joined AeroSoft in 2020, and published a book on streaming architectures in 2023.", "type": "abstractive"}
+{"question_id": "B_Q4", "question": "What is Maya’s favorite programming language?", "expected_answer": "Unanswerable from the document.", "type": "unanswerable"}

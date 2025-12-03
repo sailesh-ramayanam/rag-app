@@ -1,0 +1,58 @@
+{
+  "test_name": "biography",
+  "document": "biography.pdf",
+  "total_questions": 4,
+  "passed": 4,
+  "failed": 0,
+  "pass_rate": "100.0%",
+  "results": [
+    {
+      "question_id": "B_Q1",
+      "question": "When did Maya Rao lead the FalconDB project?",
+      "type": "extractive",
+      "expected": "From 2015 to 2019.",
+      "actual": "From 2015 to 2019. (as stated: “She led the FalconDB project (2015–2019)”)",
+      "semantic_similarity": 0.619,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer correctly and completely states the timeframe during which Maya Rao led the FalconDB project, matching the expected answer.",
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "question_id": "B_Q2",
+      "question": "Where did she get her MS?",
+      "type": "extractive",
+      "expected": "IISc, in 1998.",
+      "actual": "She earned her MS in Computer Science from IISc (Indian Institute of Science) in 1998.",
+      "semantic_similarity": 0.572,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer provides the specific facts from the expected answer, including the institution (IISc) and the year (1998).",
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "question_id": "B_Q3",
+      "question": "Summarize Maya Rao’s career in one sentence.",
+      "type": "abstractive",
+      "expected": "Maya Rao is a Bangalore-based engineer who led FalconDB (2015–2019), joined AeroSoft in 2020, and published a book on streaming architectures in 2023.",
+      "actual": "Maya Rao is a Bangalore-based software engineer and open-source maintainer whose career includes leading the FalconDB project (2015–2019) with a focus on low-latency indexing, serving as Head of Platf...",
+      "semantic_similarity": 0.905,
+      "llm_judge_score": 0.8,
+      "llm_reasoning": "The actual answer captures the key points of Maya Rao's career but includes additional details that are not present in the expected answer, such as her focus on low-latency indexing and her educational background.",
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "question_id": "B_Q4",
+      "question": "What is Maya’s favorite programming language?",
+      "type": "unanswerable",
+      "expected": "Unanswerable from the document.",
+      "actual": "The documents do not mention Maya Rao’s favorite programming language. Source: biography.pdf.",
+      "semantic_similarity": 0.159,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer correctly indicates that the information about Maya's favorite programming language is not available in the document.",
+      "passed": true,
+      "failure_reasons": []
+    }
+  ]
+}

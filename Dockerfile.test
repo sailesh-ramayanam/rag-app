@@ -1,0 +1,26 @@
+# Test container for RAG pipeline testing
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+
+# Copy test code
+COPY test/ ./test/
+
+# Set Python path to include both /app and /app/test
+ENV PYTHONPATH=/app:/app/test
+
+# Working directory for tests (where pytest.ini is)
+WORKDIR /app/test
+
+# Default command runs all tests
+CMD ["pytest", "test_rag_pipeline.py", "-v", "--tb=short"]
+

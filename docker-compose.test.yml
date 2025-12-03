@@ -1,0 +1,27 @@
+# Docker Compose file for running RAG pipeline tests
+# Usage:
+#   docker-compose -f docker-compose.test.yml run --rm test
+#   docker-compose -f docker-compose.test.yml run --rm test pytest test_rag_pipeline.py -v -k "biography"
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: vault_test
+    environment:
+      - TEST_API_URL=http://vault_app:8000/api/v1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONPATH=/app:/app/test
+    volumes:
+      - ./test:/app/test  # Mount test code for live updates
+    working_dir: /app/test
+    networks:
+      - default
+    command: ["pytest", "test_rag_pipeline.py", "-v", "--tb=short"]
+
+networks:
+  default:
+    name: rag-app_default
+    external: true
+

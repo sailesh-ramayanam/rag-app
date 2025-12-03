@@ -1,0 +1,7 @@
+{"file_name": "leave-policy.pdf"}
+{"question_id": "A_Q1", "question": "How many paid annual leave days does an employee get?", "expected_answer": "20 paid leave days per calendar year.", "type": "extractive"}
+{"question_id": "A_Q2", "question": "When is a medical certificate required for sick leave?", "expected_answer": "After the 3rd day.", "type": "extractive"}
+{"question_id": "A_Q3", "question": "Can unused annual leave be carried forward?", "expected_answer": "Yes, up to 5 days may be carried forward; otherwise it is forfeited.", "type": "extractive"}
+{"question_id": "A_Q4", "question": "Is unpaid sabbatical described in this policy?", "expected_answer": "No, the document does not mention unpaid sabbatical.", "type": "unanswerable"}
+
+

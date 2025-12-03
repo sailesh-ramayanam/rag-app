@@ -1,0 +1,7 @@
+{"file_name": "news-article.pdf"}
+{"question_id": "F_Q1", "question": "When did the council vote?", "expected_answer": "November 2, 2025.", "type": "extractive"}
+{"question_id": "F_Q2", "question": "When is construction scheduled to begin?", "expected_answer": "Q2 2026.", "type": "extractive"}
+{"question_id": "F_Q3", "question": "How many acres will be converted?", "expected_answer": "15 acres.", "type": "extractive"}
+{"question_id": "F_Q4", "question": "Which sentence mentions solar lighting?", "expected_answer": "The sentence: 'The project will convert 15 acres of industrial land into mixed-use green space with bike lanes and solar lighting.'", "type": "extractive"}
+
+

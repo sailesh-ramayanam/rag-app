@@ -1,0 +1,6 @@
+{"file_name": "conflicting-statements.pdf"}
+{"question_id": "E_Q1", "question": "Does the product support offline mode?", "expected_answer": "The document contains conflicting statements: one says yes, one says no.", "type": "conflict"}
+{"question_id": "E_Q2", "question": "What is the most reliable current status of offline mode?", "expected_answer": "Unclear; the document has contradictions and says the team is investigating.", "type": "abstractive"}
+{"question_id": "E_Q3", "question": "State whether offline mode works for all features.", "expected_answer": "Cannot be determined due to conflicting statements.", "type": "conflict"}
+
+

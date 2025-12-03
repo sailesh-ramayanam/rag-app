@@ -1,0 +1,7 @@
+{"file_name": "research.pdf"}
+{"question_id": "C_Q1", "question": "What dataset did FastGraph use to show improvements?", "expected_answer": "The RetailX dataset.", "type": "extractive"}
+{"question_id": "C_Q2", "question": "By how much did FastGraph improve click-through rate?", "expected_answer": "12% lift compared to the baseline.", "type": "extractive"}
+{"question_id": "C_Q3", "question": "Why is FastGraph suitable for real-time personalization?", "expected_answer": "It uses sparse attention on recent interactions and a light aggregator, enabling sub-second updates.", "type": "abstractive"}
+{"question_id": "C_Q4", "question": "Which paragraph states the number of interactions used per user?", "expected_answer": "The Introduction, which states it uses the most recent 500 interactions per user.", "type": "extractive"}
+
+

@@ -1,0 +1,58 @@
+{
+  "test_name": "research",
+  "document": "research.pdf",
+  "total_questions": 4,
+  "passed": 4,
+  "failed": 0,
+  "pass_rate": "100.0%",
+  "results": [
+    {
+      "question_id": "C_Q1",
+      "question": "What dataset did FastGraph use to show improvements?",
+      "type": "extractive",
+      "expected": "The RetailX dataset.",
+      "actual": "RetailX dataset. (Abstract: \"Experiments on the RetailX dataset showed a 12% lift in click-through rate compared to the baseline.\")",
+      "semantic_similarity": 0.655,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer correctly identifies the RetailX dataset, which is the specific fact requested in the question.",
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "question_id": "C_Q2",
+      "question": "By how much did FastGraph improve click-through rate?",
+      "type": "extractive",
+      "expected": "12% lift compared to the baseline.",
+      "actual": "About a 12% lift in click-through rate (relative to the baseline, on the RetailX dataset).",
+      "semantic_similarity": 0.605,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer correctly states a 12% lift in click-through rate compared to the baseline, matching the expected answer.",
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "question_id": "C_Q3",
+      "question": "Why is FastGraph suitable for real-time personalization?",
+      "type": "abstractive",
+      "expected": "It uses sparse attention on recent interactions and a light aggregator, enabling sub-second updates.",
+      "actual": "FastGraph is designed specifically for real-time personalization for a few key reasons:\n\n- Real-time focus: The approach targets sub-second updates, aligning with the needs of real-time personalizatio...",
+      "semantic_similarity": 0.5,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer captures all key points from the expected answer, elaborating on the mechanisms that enable FastGraph's suitability for real-time personalization.",
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "question_id": "C_Q4",
+      "question": "Which paragraph states the number of interactions used per user?",
+      "type": "extractive",
+      "expected": "The Introduction, which states it uses the most recent 500 interactions per user.",
+      "actual": "The Introduction paragraph states it: “FastGraph applies sparse attention on the most recent 500 interactions per user, then merges them through a light aggregator module.”",
+      "semantic_similarity": 0.511,
+      "llm_judge_score": 1.0,
+      "llm_reasoning": "The actual answer correctly identifies the paragraph and specifies the number of interactions used per user as 500, aligning with the expected answer.",
+      "passed": true,
+      "failure_reasons": []
+    }
+  ]
+}
