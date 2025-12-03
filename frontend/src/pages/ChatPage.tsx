@@ -227,7 +227,7 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {chat.messages.length === 0 ? (
+        {chat.messages.length === 0 && !pendingMessage ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-vault-500/20 to-vault-600/20 flex items-center justify-center mb-4">
               <Sparkles className="w-8 h-8 text-vault-400" />
