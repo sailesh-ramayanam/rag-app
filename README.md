@@ -6,8 +6,8 @@ An intelligent document management system where users can upload documents, get 
 
 - [Quick Start](#quick-start)
   - [Prerequisites](#prerequisites)
-  - [Setup](#setup)
-  - [Running Tests](#running-tests)
+  - [Run App](#run-app)
+  - [Run Tests](#run-tests)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [API Endpoints](#api-endpoints)
@@ -30,7 +30,7 @@ An intelligent document management system where users can upload documents, get 
 - Docker and Docker Compose
 - OpenAI API Key
 
-### Setup
+### Run App
 
 1. **Clone and navigate to the project:**
    ```bash
@@ -59,7 +59,7 @@ An intelligent document management system where users can upload documents, get 
    - API: http://localhost:8000
    - Swagger Docs: http://localhost:8000/docs
 
-### Running Tests
+### Run Tests
 
 The test suite runs RAG pipeline evaluation tests against the running backend services.
 
