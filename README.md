@@ -2,36 +2,12 @@
 
 An intelligent document management system where users can upload documents, get AI-powered insights, and chat with their documents using natural language.
 
-## Features
-
-- **Document Upload & Processing**: Support for PDF, DOCX, and TXT files
-- **Automatic Text Extraction**: Intelligent parsing using pdfplumber and python-docx
-- **Smart Chunking**: LlamaIndex sentence splitter with configurable chunk sizes
-- **Local Vector Embeddings**: sentence-transformers (no API key required for ingestion!)
-- **AI-Generated Document Summaries**: Automatic summary generation during processing
-- **Document Chat**: RAG-based Q&A with conversation history
-- **Multi-document Chat**: Ask questions across multiple documents at once
-- **Smart Query Routing**: 3-stage pipeline that intelligently routes queries
-- **Source Citations**: Get references to source documents with page numbers
-- **Async Processing**: Background processing with Celery and Redis
-- **RESTful API**: Clean FastAPI endpoints with automatic documentation
-
-## Tech Stack
-
-- **Backend**: FastAPI (Python 3.11)
-- **Database**: PostgreSQL with pgvector extension
-- **Task Queue**: Celery with Redis
-- **RAG Framework**: LlamaIndex
-- **Embeddings**: sentence-transformers (all-MiniLM-L6-v2) - local
-- **LLM**: OpenAI GPT-4o-mini (configurable)
-- **Containerization**: Docker & Docker Compose
-
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- OpenAI API Key (for chat feature)
+- OpenAI API Key
 
 ### Setup
 
@@ -57,11 +33,66 @@ An intelligent document management system where users can upload documents, get 
 
    > Note: First run will download the embedding model (~90MB). This is cached for subsequent runs.
 
-5. **Access the API:**
+5. **Access the application:**
    - UI: http://localhost:3000
    - API: http://localhost:8000
    - Swagger Docs: http://localhost:8000/docs
-   - ReDoc: http://localhost:8000/redoc
+
+### Running Tests
+
+The test suite runs RAG pipeline evaluation tests against the running backend services.
+
+**Prerequisites:** Backend services must be running (`docker-compose up -d`)
+
+**Linux/macOS (Bash):**
+```bash
+# Run all tests
+./run_tests.sh
+
+# Run specific test (e.g., biography)
+./run_tests.sh biography
+
+# Rebuild test container and run
+./run_tests.sh --build
+```
+
+**Windows (PowerShell): Not tested**
+```powershell
+# Run all tests
+.\run_tests.ps1
+
+# Run specific test (e.g., biography)
+.\run_tests.ps1 biography
+
+# Rebuild test container and run
+.\run_tests.ps1 -Build
+```
+
+The tests use `docker-compose.test.yml` to run pytest in a container that connects to the backend services.
+
+## Features
+
+- **Document Upload & Processing**: Support for PDF
+- **Automatic Text Extraction**: Intelligent parsing using pdfplumber
+- **Smart Chunking**: LlamaIndex sentence splitter with configurable chunk sizes
+- **Local Vector Embeddings**: sentence-transformers (no API key required for ingestion!)
+- **AI-Generated Document Summaries**: Automatic summary generation during processing
+- **Document Chat**: RAG-based Q&A with conversation history
+- **Multi-document Chat**: Ask questions across multiple documents at once
+- **Smart Query Routing**: 3-stage pipeline that intelligently routes queries
+- **Source Citations**: Get references to source documents with page numbers
+- **Async Processing**: Background processing with Celery and Redis
+- **RESTful API**: Clean FastAPI endpoints with automatic documentation
+
+## Tech Stack
+
+- **Backend**: FastAPI (Python 3.11)
+- **Database**: PostgreSQL with pgvector extension
+- **Task Queue**: Celery with Redis
+- **RAG Framework**: LlamaIndex
+- **Embeddings**: sentence-transformers (all-MiniLM-L6-v2) - local
+- **LLM**: OpenAI gpt-5-nano (configurable)
+- **Containerization**: Docker & Docker Compose
 
 ## API Endpoints
 
@@ -74,7 +105,7 @@ An intelligent document management system where users can upload documents, get 
 | GET | `/api/v1/documents/{id}` | Get document details |
 | GET | `/api/v1/documents/{id}/chunks` | Get document chunks |
 | DELETE | `/api/v1/documents/{id}` | Delete a document |
-| GET | `/api/v1/documents/stats/overview` | Get processing statistics |
+| GET | `/api/v1/documents/stats/overview` | Not tested |
 
 ### Chat
 
@@ -92,69 +123,18 @@ An intelligent document management system where users can upload documents, get 
 |--------|----------|-------------|
 | GET | `/api/v1/admin/usage/summary` | Get overall usage summary |
 | GET | `/api/v1/admin/usage/chats` | Get per-chat token usage |
-| GET | `/api/v1/admin/documents/summaries` | Get document summary status |
-| POST | `/api/v1/admin/documents/regenerate-summaries` | Regenerate document summaries |
-
-### Example: Complete Chat Workflow
-
-```bash
-# 1. Upload a document
-curl -X POST "http://localhost:8000/api/v1/documents/upload" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@your-document.pdf"
-
-# Response: { "id": "doc-uuid-here", "status": "pending", ... }
-
-# 2. Wait for processing (check status)
-curl "http://localhost:8000/api/v1/documents/doc-uuid-here"
-
-# 3. Create a chat with the document
-curl -X POST "http://localhost:8000/api/v1/chats/" \
-  -H "Content-Type: application/json" \
-  -d '{"document_ids": ["doc-uuid-here"]}'
-
-# Response: { "id": "chat-uuid-here", ... }
-
-# 4. Ask a question
-curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the main topic of this document?"}'
-
-# Response: { 
-#   "answer": "...", 
-#   "sources": [...], 
-#   "query_type": "chunk_retrieval",
-#   "retrieval_strategy": "vector_search" 
-# }
-
-# 5. Ask for a summary (uses document summaries, not vector search)
-curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Summarize this document"}'
-
-# Response: { 
-#   "answer": "...", 
-#   "sources": [...], 
-#   "query_type": "document_level",
-#   "retrieval_strategy": "document_summaries" 
-# }
-
-# 6. Ask a follow-up (uses conversation history)
-curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Tell me more about that"}'
-
-# Response: { 
-#   "answer": "...", 
-#   "sources": [...], 
-#   "query_type": "follow_up",
-#   "retrieval_strategy": "conversation_history" 
-# }
-```
+| GET | `/api/v1/admin/documents/summaries` | Not tested |
+| POST | `/api/v1/admin/documents/regenerate-summaries` | Not tested |
 
 ## Architecture
 
 ```
+                    ┌─────────────┐
+                    │   OpenAI    │
+                    │  gpt-5-nano │
+                    └─────────────┘
+                          ▲
+                          │
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   Client    │────>│   FastAPI   │────>│  PostgreSQL │
 │             │     │    (API)    │     │  (pgvector) │
@@ -167,20 +147,20 @@ curl -X POST "http://localhost:8000/api/v1/chats/chat-uuid-here/messages" \
                    └─────────────┘     └──────┬──────┘
                                               │
                                               ▼
-                   ┌─────────────┐     ┌─────────────┐
-                   │   OpenAI    │     │  Sentence   │
-                   │  GPT-4o     │     │ Transformers│
-                   └─────────────┘     └─────────────┘
+                                      ┌─────────────┐
+                                      │   Sentence  │
+                                      │Transformers │
+                                      └─────────────┘
 ```
 
 ### Processing Pipeline
 
 1. **Upload**: Document uploaded via API, saved to storage
 2. **Queue**: Processing task queued in Redis
-3. **Extract**: Celery worker extracts text from document
+3. **Extract**: Celery worker extracts text from document and generates a summary
 4. **Chunk**: LlamaIndex splits text into overlapping chunks (~1000 chars)
 5. **Embed**: sentence-transformers generates 384-dim vectors locally
-6. **Store**: Chunks and embeddings saved to PostgreSQL with pgvector
+6. **Store**: Summary, chunks and embeddings saved to PostgreSQL with pgvector
 
 ### Enhanced 3-Stage Chat Pipeline
 
@@ -211,6 +191,50 @@ This approach ensures:
 - "Tell me more" → Uses conversation context, not vector search
 - "What is X?" → Uses vector search for relevant chunks
 
+### Testing Strategy
+
+The test suite validates the RAG pipeline using a combination of **LLM-as-Judge** and **Semantic similarity** scores. A test case is marked as passed if it crosses threshold in at least one of the two (**LLM-as-Judge** and **Semantic similarity**) scores.
+
+#### Test Data Format (JSONL)
+Each test case is a JSONL file containing:
+```jsonl
+{"file_name": "document.pdf"}
+{"question_id": "Q1", "question": "...", "expected_answer": "...", "type": "extractive"}
+{"question_id": "Q2", "question": "...", "expected_answer": "...", "type": "abstractive"}
+```
+
+#### Question Types
+| Type | Description | Evaluation |
+|------|-------------|------------|
+| `extractive` | Direct facts from document | Strict matching (threshold: 0.70) |
+| `abstractive` | Summary/synthesis questions | Lenient matching (threshold: 0.60) |
+| `unanswerable` | Info not in document | Should indicate "not found" |
+| `table` | Table/numerical extraction | Fact checking (threshold: 0.65) |
+| `conflict` | Contradictory information | Should acknowledge conflict |
+
+#### Evaluation Pipeline
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Test Data   │────>│  RAG System  │────>│   Evaluator  │
+│   (JSONL)    │     │  (Chat API)  │     │              │
+└──────────────┘     └──────────────┘     └──────┬───────┘
+                                                 │
+                     ┌───────────────────────────|
+                     │                           │                           │
+                     ▼                           ▼                           ▼
+              ┌─────────────┐            ┌─────────────┐
+              │  Semantic   │            │ LLM-as-Judge│
+              │ Similarity  │            │   (GPT-4)   │
+              └─────────────┘            └─────────────┘
+```
+
+1. **Upload & Process**: Test PDF uploaded via API
+2. **Create Chat**: Chat session created with document
+3. **Ask Questions**: Each question from JSONL sent to chat API
+4. **Evaluate Answers**: Multi-strategy evaluation:
+   - **Semantic Similarity**: sentence-transformers compares embeddings
+   - **LLM-as-Judge**: GPT-4 evaluates correctness and reasoning
+
 ## Configuration
 
 Environment variables:
@@ -221,76 +245,105 @@ Environment variables:
 | `LLM_PROVIDER` | LLM provider | `openai` |
 | `LLM_MODEL` | LLM model | `gpt-5-nano` |
 | `EMBEDDING_MODEL` | sentence-transformers model | `all-MiniLM-L6-v2` |
-| `CHUNK_SIZE` | Characters per chunk | `1000` |
-| `CHUNK_OVERLAP` | Overlap between chunks | `200` |
 
-### Available LLM Models
 
-| Model | Cost | Quality | Speed |
-|-------|------|---------|-------|
-| `gpt-4o-mini` | $ | Good | Fast |
-| `gpt-4o` | $$$ | Best | Medium |
-| `gpt-3.5-turbo` | $ | Decent | Fastest |
-
-### Available Embedding Models
-
-| Model | Dimensions | Size | Speed |
-|-------|------------|------|-------|
-| `all-MiniLM-L6-v2` | 384 | ~90MB | Fast |
-| `all-mpnet-base-v2` | 768 | ~420MB | Better quality |
-
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 rag-app/
 ├── app/
-│   ├── api/           # API routes (documents, chat)
-│   ├── core/          # Config, database
-│   ├── models/        # SQLAlchemy models (Document, Chat, Message)
-│   ├── services/      # Business logic (chat, embeddings, llm)
-│   ├── tasks/         # Celery tasks
-│   └── main.py        # FastAPI app
-├── storage/           # Document storage
-├── docker-compose.yml
+│   ├── api/              # API routes (documents, chat, admin)
+│   ├── core/             # Config, database
+│   ├── models/           # SQLAlchemy models (Document, Chat, Message, LLMUsage)
+│   ├── services/         # Business logic (chat, embeddings, llm, query routing)
+│   ├── tasks/            # Celery tasks
+│   └── main.py           # FastAPI app
+├── frontend/
+│   ├── src/
+│   │   ├── api/          # API client
+│   │   ├── components/   # React components
+│   │   ├── pages/        # Page components
+│   │   └── types/        # TypeScript types
+│   └── ...
+├── test/
+│   ├── test-data/        # Test PDFs and expected Q&A (JSONL)
+│   ├── evaluator.py      # LLM-based answer evaluation
+│   ├── test_rag_pipeline.py  # Main test suite
+│   └── conftest.py       # Pytest fixtures
+├── storage/              # Uploaded document storage
+├── docker-compose.yml    # Main services
+├── docker-compose.test.yml  # Test container config
 ├── Dockerfile
+├── Dockerfile.test
 ├── requirements.txt
+├── requirements-test.txt
+├── run_tests.sh          # Test runner (Linux/macOS)
+├── run_tests.ps1         # Test runner (Windows)
 └── README.md
 ```
 
-### Running Locally (without Docker)
+## To Dos
+### Tests
+Investigate the failing tests
+```
+test_rag_pipeline.py::test_rag_document[biography] PASSED                [ 14%]
+test_rag_pipeline.py::test_rag_document[conflicting-statements] FAILED   [ 28%]
+test_rag_pipeline.py::test_rag_document[leave-policy] PASSED             [ 42%]
+test_rag_pipeline.py::test_rag_document[news-article] FAILED             [ 57%]
+test_rag_pipeline.py::test_rag_document[research] PASSED                 [ 71%]
+test_rag_pipeline.py::test_rag_document[table] FAILED                    [ 85%]
+test_rag_pipeline.py::test_single_question SKIPPED (Enable this test...) [100%]
 
-```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+.....
+.....
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Start PostgreSQL and Redis (manually or via Docker)
-docker-compose up db redis -d
-
-# Set environment variables
-export OPENAI_API_KEY=sk-your-key-here
-
-# Run FastAPI
-uvicorn app.main:app --reload
-
-# Run Celery worker (separate terminal)
-celery -A app.tasks.celery_app worker --loglevel=info
+=========================== short test summary info ============================
+FAILED test_rag_pipeline.py::test_rag_document[conflicting-statements] - Runt...
+FAILED test_rag_pipeline.py::test_rag_document[news-article] - RuntimeError: ...
+FAILED test_rag_pipeline.py::test_rag_document[table] - RuntimeError: Event l...
+======== 3 failed, 3 passed, 1 skipped, 2 warnings in 289.97s (0:04:49) ========
 ```
 
-## Coming Soon
+### Review
+Almost all of the code is LLM generated. Following are a few aspects I noticed while skimming through the code (but not an exhaustive list of issues)
+#### Functional
+- Is error handling present at all steps?
+    - When document summary generation failed, the doc processing was marked complete with summary containing the error
+    - There is truncation of text in some places 
+- Reuse agenerate instead of chat.completions.create (document_tasks.py)
+- LLM usage for query classification is not logged - logging should happen at the LLM call. This way the caller need not log the LLM usage 
+- Test for DOCX, and TXT files
+- Parameterize chunk size and chunk overlap
 
-- [ ] Streaming chat responses (SSE)
-- [x] AI-generated document summaries
-- [x] Smart query routing (follow-up detection)
-- [ ] Follow-up question suggestions
-- [ ] Document categorization
-- [x] Cost tracking for API usage
+#### System Design
+- Integrity checks
+    - deleting chat-id is deleting the messages and nullifies the chat-id in llm_usage, but the message-id remains non-null
+    - should we use soft delete?
 
-## License
+#### Tests
+- evaluator.py is using gpt-4o-mini. Parameterize it.
+- Cleanup in the tests is unguarded. There can be leakage in case of exceptions.
 
-MIT
+#### Dev
+- Clean up requirements.txt - e.g. python-docx is not used
+
+## Enhancements
+### Instrumentation
+- Logs for all the requests
+  - There is some logging. It needs to be reviewed.
+  - Use a system like Splunk
+- Only LLM token usage is logged. We can have other performance metrics like response time (p99, p95), failures etc.
+
+### Functionality
+- File size limits
+- Option to use Open AI for embeddings
+- Reduce token usage by sending a summary of the history instead of the raw history
+- Handling multi-modal documents
+- Pagination for documents API (and other relevant APIs)
+
+### UI
+- Provide a name to a document
+- Rename a document
+- Currently doc search is just a filter of fetched documents, not a search on server
+- User login
+- Chunk references in the frontend are not shown well

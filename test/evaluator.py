@@ -4,7 +4,6 @@ Answer evaluation module for RAG pipeline testing.
 Provides multiple strategies for evaluating LLM-generated answers:
 1. Semantic Similarity - Using sentence embeddings
 2. LLM-as-Judge - Using GPT to evaluate correctness
-3. Keyword Extraction - Checking for key facts
 
 Handles different question types:
 - extractive: Direct extraction from document (stricter evaluation)
