@@ -8,20 +8,29 @@ An intelligent document management system where users can upload documents, get 
   - [Prerequisites](#prerequisites)
   - [Run App](#run-app)
   - [Run Tests](#run-tests)
+- [Architecture](#architecture)
+  - [Processing Pipeline](#processing-pipeline)
+  - [Enhanced 3-Stage Chat Pipeline](#enhanced-3-stage-chat-pipeline)
+  - [Testing Strategy](#testing-strategy)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [API Endpoints](#api-endpoints)
   - [Documents](#documents)
   - [Chat](#chat)
   - [Admin](#admin)
-- [Architecture](#architecture)
-  - [Processing Pipeline](#processing-pipeline)
-  - [Enhanced 3-Stage Chat Pipeline](#enhanced-3-stage-chat-pipeline)
-  - [Testing Strategy](#testing-strategy)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
 - [To Dos](#to-dos)
+  - [Investigate Tests](#investigate-tests)
+  - [Review](#review)
+    - [Functional](#functional)
+    - [System Design](#system-design)
+    - [Tests](#tests)
+    - [Dev](#dev)
 - [Enhancements](#enhancements)
+  - [Instrumentation](#instrumentation)
+  - [Functionality](#functionality)
+  - [UI](#ui)
 
 ## Quick Start
 
@@ -90,62 +99,6 @@ The test suite runs RAG pipeline evaluation tests against the running backend se
 ```
 
 The tests use `docker-compose.test.yml` to run pytest in a container that connects to the backend services.
-
-## Features
-
-- **Document Upload & Processing**: Support for PDF
-- **Automatic Text Extraction**: Intelligent parsing using pdfplumber
-- **Smart Chunking**: LlamaIndex sentence splitter with configurable chunk sizes
-- **Local Vector Embeddings**: sentence-transformers (no API key required for ingestion!)
-- **AI-Generated Document Summaries**: Automatic summary generation during processing
-- **Document Chat**: RAG-based Q&A with conversation history
-- **Multi-document Chat**: Ask questions across multiple documents at once
-- **Smart Query Routing**: 3-stage pipeline that intelligently routes queries
-- **Source Citations**: Get references to source documents with page numbers
-- **Async Processing**: Background processing with Celery and Redis
-- **RESTful API**: Clean FastAPI endpoints with automatic documentation
-
-## Tech Stack
-
-- **Backend**: FastAPI (Python 3.11)
-- **Database**: PostgreSQL with pgvector extension
-- **Task Queue**: Celery with Redis
-- **RAG Framework**: LlamaIndex
-- **Embeddings**: sentence-transformers (all-MiniLM-L6-v2) - local
-- **LLM**: OpenAI gpt-5-nano (configurable)
-- **Containerization**: Docker & Docker Compose
-
-## API Endpoints
-
-### Documents
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/documents/upload` | Upload a document for processing |
-| GET | `/api/v1/documents/` | List all documents (paginated) |
-| GET | `/api/v1/documents/{id}` | Get document details |
-| GET | `/api/v1/documents/{id}/chunks` | Get document chunks |
-| DELETE | `/api/v1/documents/{id}` | Delete a document |
-| GET | `/api/v1/documents/stats/overview` | Not tested |
-
-### Chat
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/chats/` | Create a new chat with document IDs |
-| GET | `/api/v1/chats/` | List all chats (paginated) |
-| GET | `/api/v1/chats/{id}` | Get chat with message history |
-| POST | `/api/v1/chats/{id}/messages` | Ask a question (with smart routing) |
-| DELETE | `/api/v1/chats/{id}` | Delete a chat |
-
-### Admin
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/admin/usage/summary` | Get overall usage summary |
-| GET | `/api/v1/admin/usage/chats` | Get per-chat token usage |
-| GET | `/api/v1/admin/documents/summaries` | Not tested |
-| POST | `/api/v1/admin/documents/regenerate-summaries` | Not tested |
 
 ## Architecture
 
@@ -256,6 +209,62 @@ Each test case is a JSONL file containing:
    - **Semantic Similarity**: sentence-transformers compares embeddings
    - **LLM-as-Judge**: GPT-4 evaluates correctness and reasoning
 
+## Features
+
+- **Document Upload & Processing**: Support for PDF
+- **Automatic Text Extraction**: Intelligent parsing using pdfplumber
+- **Smart Chunking**: LlamaIndex sentence splitter with configurable chunk sizes
+- **Local Vector Embeddings**: sentence-transformers (no API key required for ingestion!)
+- **AI-Generated Document Summaries**: Automatic summary generation during processing
+- **Document Chat**: RAG-based Q&A with conversation history
+- **Multi-document Chat**: Ask questions across multiple documents at once
+- **Smart Query Routing**: 3-stage pipeline that intelligently routes queries
+- **Source Citations**: Get references to source documents with page numbers
+- **Async Processing**: Background processing with Celery and Redis
+- **RESTful API**: Clean FastAPI endpoints with automatic documentation
+
+## Tech Stack
+
+- **Backend**: FastAPI (Python 3.11)
+- **Database**: PostgreSQL with pgvector extension
+- **Task Queue**: Celery with Redis
+- **RAG Framework**: LlamaIndex
+- **Embeddings**: sentence-transformers (all-MiniLM-L6-v2) - local
+- **LLM**: OpenAI gpt-5-nano (configurable)
+- **Containerization**: Docker & Docker Compose
+
+## API Endpoints
+
+### Documents
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/documents/upload` | Upload a document for processing |
+| GET | `/api/v1/documents/` | List all documents (paginated) |
+| GET | `/api/v1/documents/{id}` | Get document details |
+| GET | `/api/v1/documents/{id}/chunks` | Get document chunks |
+| DELETE | `/api/v1/documents/{id}` | Delete a document |
+| GET | `/api/v1/documents/stats/overview` | Not tested |
+
+### Chat
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/chats/` | Create a new chat with document IDs |
+| GET | `/api/v1/chats/` | List all chats (paginated) |
+| GET | `/api/v1/chats/{id}` | Get chat with message history |
+| POST | `/api/v1/chats/{id}/messages` | Ask a question (with smart routing) |
+| DELETE | `/api/v1/chats/{id}` | Delete a chat |
+
+### Admin
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/usage/summary` | Get overall usage summary |
+| GET | `/api/v1/admin/usage/chats` | Get per-chat token usage |
+| GET | `/api/v1/admin/documents/summaries` | Not tested |
+| POST | `/api/v1/admin/documents/regenerate-summaries` | Not tested |
+
 ## Configuration
 
 Environment variables:
@@ -304,7 +313,7 @@ rag-app/
 ```
 
 ## To Dos
-### Tests
+### Investigate Tests
 Investigate the failing tests
 ```
 test_rag_pipeline.py::test_rag_document[biography] PASSED                [ 14%]
