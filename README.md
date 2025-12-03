@@ -58,6 +58,7 @@ An intelligent document management system where users can upload documents, get 
    > Note: First run will download the embedding model (~90MB). This is cached for subsequent runs.
 
 5. **Access the API:**
+   - UI: http://localhost:3000
    - API: http://localhost:8000
    - Swagger Docs: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
