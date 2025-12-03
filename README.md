@@ -21,16 +21,17 @@ An intelligent document management system where users can upload documents, get 
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
 - [To Dos](#to-dos)
-  - [Investigate Tests](#investigate-tests)
   - [Review](#review)
     - [Functional](#functional)
     - [System Design](#system-design)
     - [Tests](#tests)
     - [Dev](#dev)
+  - [Investigate Tests](#investigate-tests)
 - [Enhancements](#enhancements)
   - [Instrumentation](#instrumentation)
   - [Functionality](#functionality)
   - [UI](#ui)
+- [AI Usage](#ai-usage)
 
 ## Quick Start
 
@@ -313,27 +314,6 @@ rag-app/
 ```
 
 ## To Dos
-### Investigate Tests
-Investigate the failing tests
-```
-test_rag_pipeline.py::test_rag_document[biography] PASSED                [ 14%]
-test_rag_pipeline.py::test_rag_document[conflicting-statements] FAILED   [ 28%]
-test_rag_pipeline.py::test_rag_document[leave-policy] PASSED             [ 42%]
-test_rag_pipeline.py::test_rag_document[news-article] FAILED             [ 57%]
-test_rag_pipeline.py::test_rag_document[research] PASSED                 [ 71%]
-test_rag_pipeline.py::test_rag_document[table] FAILED                    [ 85%]
-test_rag_pipeline.py::test_single_question SKIPPED (Enable this test...) [100%]
-
-.....
-.....
-
-=========================== short test summary info ============================
-FAILED test_rag_pipeline.py::test_rag_document[conflicting-statements] - Runt...
-FAILED test_rag_pipeline.py::test_rag_document[news-article] - RuntimeError: ...
-FAILED test_rag_pipeline.py::test_rag_document[table] - RuntimeError: Event l...
-======== 3 failed, 3 passed, 1 skipped, 2 warnings in 289.97s (0:04:49) ========
-```
-
 ### Review
 Almost all of the code is LLM generated. Following are a few aspects I noticed while skimming through the code (but not an exhaustive list of issues)
 #### Functional
@@ -357,6 +337,27 @@ Almost all of the code is LLM generated. Following are a few aspects I noticed w
 #### Dev
 - Clean up requirements.txt - e.g. python-docx is not used
 
+### Investigate Tests
+Investigate the failing tests
+```
+test_rag_pipeline.py::test_rag_document[biography] PASSED                [ 14%]
+test_rag_pipeline.py::test_rag_document[conflicting-statements] FAILED   [ 28%]
+test_rag_pipeline.py::test_rag_document[leave-policy] PASSED             [ 42%]
+test_rag_pipeline.py::test_rag_document[news-article] FAILED             [ 57%]
+test_rag_pipeline.py::test_rag_document[research] PASSED                 [ 71%]
+test_rag_pipeline.py::test_rag_document[table] FAILED                    [ 85%]
+test_rag_pipeline.py::test_single_question SKIPPED (Enable this test...) [100%]
+
+.....
+.....
+
+=========================== short test summary info ============================
+FAILED test_rag_pipeline.py::test_rag_document[conflicting-statements] - Runt...
+FAILED test_rag_pipeline.py::test_rag_document[news-article] - RuntimeError: ...
+FAILED test_rag_pipeline.py::test_rag_document[table] - RuntimeError: Event l...
+======== 3 failed, 3 passed, 1 skipped, 2 warnings in 289.97s (0:04:49) ========
+```
+
 ## Enhancements
 ### Instrumentation
 - Logs for all the requests
@@ -377,3 +378,120 @@ Almost all of the code is LLM generated. Following are a few aspects I noticed w
 - Currently doc search is just a filter of fetched documents, not a search on server
 - User login
 - Chunk references in the frontend are not shown well
+
+## AI Usage
+I extensively used `Chat GPT` and `Cursor (Agent mode, Opus 4.5)` for this case study. Almost all of the code is LLM generated. Please refer to [To Dos section](#to-dos) to look at some of the issues I identified with the code.
+
+- **Brainstorming:** I have not worked on a RAG application in the past. I used `Chat GPT` as a subject matter expert. I discussed my thoughts and requirements with it to learn and understand the things I have not worked on before.
+
+- **Inital steps:** I gave assignment doc to `Chat GPT` and asked it to generate a plan without code. This helped me understand the basic architecture of RAG.
+
+- **Code understanding:** I have not used Python in the last 10 years. So I used `Chat GPT` to understand some unfamiliar code.
+
+- **Dead code elimination:** Sometimes LLMs generate more than required code. This can make code analysis and reasoning complex. I used `vulture` to identify and remove some dead code.
+
+
+Following are some prompts I used.
+
+```
+I am attaching an assignment document. Give me a plan on how to do this assignment. No need of code.
+```
+
+```
+I want to begin by setting up the ingestion pipeline. Give me the steps for this. No need of code.
+```
+
+```
+I want to store the DB and the files locally. Can I use docker or python virtual environemnt for this?
+```
+
+```
+Now I want to add APIs for chat workflows. Below is my plan. Review my plan.
+I have the following data model in mind.
+- A chat will have a chat-id, a list of document-ids and conversation history
+- The list of document-ids will indicate which documents should be used in answering the user questions
+- Conversation history is a list of messages which will contain a sequence of <user question, top-k matching embeddings, LLM response>
+
+Whenever a new question is asked in a given chat, it does the following
+- Retrieve the top-k embeddings that are nearest to the question
+- Send the history, new question, and the top-k embeddings to the LLM
+- Update the history with the new question, the top-k embeddings and the response from the LLM
+- Send the LLM response to the user
+
+When user initiates a new chat with a list of document-ids
+- If the processing of all the documents is completed, then do the above steps
+- Otherwise the API should return an appropriate message
+```
+
+```
+Token usage instrumentation
+- I want to track the cost of open AI usage. For each ChatMessage, I want to store the model, number of input tokens and output tokens consumed by the call.
+- chat_messages table is used to retreive the chats for users. I don't want to pollute it with token counts etc. which are used only by internal teams. So, I want to create a new table that contains the token related data. I can then use it to log all calls to the LLMs, not just chat completions. In future I may decide to use embeddings api. That also I can log into this table. So, create a new table that can store the chat-id, input content, output content, model name, api type, number of input tokens and number of output tokens.
+```
+
+```
+I want to create a frontend application to test and demonstrate the chat application. The frontend should support the below workflows.
+- The home page should show the list of documents uploaded by the user. It should also show a button to upload a new document.
+- User should be able to select a set of documents and begin a chat. The documents whose processing is not completed should not be selectable.
+- When the user uploads a new document, it should remain unselectable. Once the processing is complete, it should become selectable witjout needing a page reload.
+- There should be a nav bar to the left. It should have two collapsible sections - one for chats and one for admin page.
+- Chats section should be a scrollable list of all the chats of the user. It should also have a New chat button that should take the user to the home page. The new chat button should always stay visible.
+- When a chat is selected, it should show the document links and conversation history. The document links should always be visible, but the conversation must be scrollable. There should be a text field for the user to type a new message into the chat.
+- Admin section should take the user to the admin page. For now, it should show a table of chats with the corresponding token usage.
+
+Use React with Typescript.
+```
+
+```
+There are 4 issues in the front end.
+Issue 1: When the user types a message and hits send, that message is not shown in the conversation until we receive a response from the backend. The conversation must show the user's message as soon as user hits send.
+Issue 2: When we receive a response in chat 1, the chunk references are shown. When I switch to chat 2, then also the same chunk references are shown. This is wrong.
+Issue 3: Allow the user to download the files.
+Issue 4: In the usage analytics page, clicking on a row is opening the chat. Provide a separate button/link in the row to open the chat. Clicking elsewhere on the row should not open the chat.
+```
+
+```
+Even if our chunking strategy is the best, we have to decide how and what to use? 
+
+Scenario 1: If the user asks provide a summary about this document, then vector search using the embedding of the query may not yield much relevant information.
+
+Scenario 2: After a bit of conversation on a particular topic in the document, if the user asks "Tell me more", then also vector search using the embedding of the query will not yield much relevant information. 
+
+Scenario 3: If the user asks "Tell me about <insert a topic name>". In this case, vector search using the embedding of the query may yield relevant information. In this case, we may not need to send the conversation history to the LLM.
+
+So, first we will have to decide whether we should use the embedding of the query. Next we will have to decide, whether we need to include the conversation history or not.
+
+How can we address these aspects?
+```
+
+```
+Now that we have a basic setup for a documents-based RAG system, I want to make it more effective and realistic. When a user asks a query, there can be various scenarios.
+
+Scenario 1: If the user asks "Provide a summary about this document", then vector search using the embedding of the query may not yield much relevant information.
+
+Scenario 2: After a bit of conversation on a particular topic in the document, if the user asks "Tell me more", then also vector search using the embedding of the query will not yield much relevant information. 
+
+Scenario 3: If the user asks "Tell me about <insert a topic name>". In this case, vector search using the embedding of the query may yield relevant information. In this case, we may not need to send the conversation history to the LLM.
+
+So, first we will have to decide whether we should use the embedding of the query. Next we will have to decide, whether we need to include the conversation history or not.
+
+In the current implementation, we are computing the embedding for the user query and then doing a vector search in the embeddings of the chunks. I want to enhance this flow. I want to break it into 3 stages.
+Stage 1: Query Classification - decide what kind of query it is. For e.g. DOCUMENT_LEVEL or FOLLOW_UP or CHUNK_RETRIEVAL or MIXED 
+Stage 2: Retrieval Routing - based on the query class, identify the required content. For e.g. DOCUMENT_LEVEL may require only the document summaries. FOLLOW_UP may require only the conversation history. CHUNK_RETRIEVAL may require only the embedding search results. MIXED may require a combination of these.
+Stage 3: Context Management - Build a prompt with the content from the previous step and ask the LLM to provide an answer.
+```
+
+```
+Add tests
+I like to have some automated tests for the backend chat APIs. The tests should do the following.
+- Upload a document
+- Create a chat
+- Ask a series of questions
+- Evaluate whether the answers match with the expected answers
+
+The returned answers may not be a verbatim match for the expected answer, but still could be correct. In that case is it possible to have automated tests?
+```
+
+```
+I created a test folder and inside the test folder, I created a test_data folder. The test_data folder will contain a set of jsonl files. The first line jsonl file will contain the document name. Rest of the lines will contain queries and expected answers. I want you to create a test setup that uses these jsonl files to run the tests. You can refer to for example.
+```
