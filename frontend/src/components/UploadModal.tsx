@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Upload, X, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { api } from '../api/client'
@@ -24,6 +24,14 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       }, 1500)
     },
   })
+
+  // Reset mutation state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      uploadMutation.reset()
+      setFile(null)
+    }
+  }, [isOpen])
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
